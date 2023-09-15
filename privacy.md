@@ -12,7 +12,7 @@ Ti ringrazio per il tuo supporto e la tua comprensione mentre condivido queste i
 
 Grazie per aver scelto ChatGPT Folderizr!
 
-## Per gli Utenti
+## Per gli Utenti come te
 
 ### Raccolta di Informazioni
 
@@ -67,7 +67,7 @@ Thank you for your support and understanding as I share this necessary, albeit n
 
 Thank you for choosing ChatGPT Folderizr!
 
-## For Users
+## For Users like you
 
 ### Information Collection
 
