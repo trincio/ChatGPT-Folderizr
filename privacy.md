@@ -6,7 +6,7 @@ Sono felice di condividere con te questa informativa sulla privacy, anche se, fr
 
 Tuttavia, comprendo che in un mondo sempre più regolamentato è necessario seguire procedure e normative, anche per un progetto open source come il mio. In questo documento, spiegherò chiaramente come gestisco i dati e cosa puoi aspettarti dall'uso di ChatGPT Folderizr.
 
-La mia priorità principale è la tua privacy e il tuo benessere online. ChatGPT Folderizr è stato creato con l'intenzione di rendere la tua esperienza di chat su chat.openai.com più efficiente e organizzata, senza alcuna intrusione nella tua vita digitale.
+Una delle priorità principali è la tua privacy. ChatGPT Folderizr è stato creato con l'intenzione di rendere la tua esperienza di chat su chat.openai.com più efficiente e organizzata, senza alcuna intrusione nella tua vita digitale.
 
 Ti ringrazio per il tuo supporto e la tua comprensione mentre condivido queste informazioni necessarie, anche se non sempre gradite. La tua fiducia è fondamentale per me.
 
