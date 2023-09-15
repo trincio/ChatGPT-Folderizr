@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ChatGPT Folderizr: Organize Conversations</title>
+  <script src="popup.js"></script>
+  <style>
+    /* Basic style for the expandable description */
+    #description_content {
+      display: none;
+	  text-align: justify;
+	  padding: 2em;
+    }
+
+    /* Making the buttons look nicer and spaced apart */
+    button {
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      cursor: pointer;
+      border-radius: 5px;
+      margin-bottom: 10px; /* Adds space between buttons */
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    /* Make the popup wider */
+    body {
+      width: 400px;
+	  
+    }
+  </style>
+</head>
+<body>
+  <h1>ChatGPT Folderizr: Organize Conversations</h1>
+  <button id="toggleButton">Enable/Disable</button>
+  <br> <!-- line break to separate buttons -->
+  <!-- Add button to expand/hide the description -->
+  <button id="toggleDescription">Show/Hide Description</button>
+  
+  <!-- Container for the expandable description --> 
+  <div id="description_content">
+    <h2>Introduction</h2>
+    <p>This script, ChatGPT Folderizr, organizes your conversations into folders within the DOM. Conversations will be moved based on naming conventions. To use this feature, simply toggle the "Enable/Disable" button. You can also rename conversations to specify a folder assignment by enclosing the folder name in square brackets.</p>
+    
+    <h2>Architectural Choices</h2>
+    <p>The activate/deactivate functionality is stored locally to remember your choice. This approach aligns well with the underlying architecture of ChatGPT, preserving transparency of the pre-existing features. Folders are generated dynamically based on the names of the conversations, offering you great flexibility to manage your chats.</p>
+    
+    <h2>Important Note on Renaming and Deleting</h2>
+    <p>Due to the architectural choices of ChatGPT Folderizr, renaming or deleting conversations while the tool is active could lead to unpredictable behavior. To avoid issues, please disable ChatGPT Folderizr using the "Enable/Disable" button before making any name changes or deletions.</p>
+  </div>
+</body>
+</html>
