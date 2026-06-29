@@ -17,6 +17,8 @@ Implementato il 2026-06-29 sul branch di lavoro:
 - ripristino della posizione iniziale;
 - arresto sicuro quando la pagina cambia;
 - avanzamento con round, totale indicizzato e nuovi elementi.
+- probe passivo esportabile con metriche numeriche di scroll, mutazioni e timing;
+- finestra di quiete temporale al fondo per tollerare lazy loading variabile.
 
 Validazione manuale Firefox sul DOM ChatGPT reale ancora necessaria.
 

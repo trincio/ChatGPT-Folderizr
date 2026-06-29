@@ -12,6 +12,9 @@
 - Added cancellable progressive scanning with a visible `Stop scan` action.
 - Added per-round progress reporting and progressive local index saves.
 - Added temporary mutation tracking, safe interruption handling, and scroll-position restoration.
+- Replaced the short round-based completion rule with an 8-second activity quiet period at the bottom of the list.
+- Extended the scan safety limit to 15 minutes for large histories.
+- Added a passive scan probe with exportable numeric DOM, timing, mutation, and progress diagnostics.
 
 ## 1.1.0
 

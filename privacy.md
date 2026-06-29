@@ -8,7 +8,7 @@ Folderizr is a local browser extension that visually groups ChatGPT sidebar conv
 
 Folderizr does not collect user data.
 
-It does not collect personal information, ChatGPT conversations, prompts, outputs, browsing history, account details, identifiers, usage events, or diagnostics.
+It does not collect personal information, ChatGPT conversations, prompts, outputs, browsing history, account details, identifiers, usage events, or diagnostic telemetry.
 
 ## Data Transmission
 
@@ -30,6 +30,8 @@ Folderizr uses local browser extension storage to remember whether the extension
 
 If the user runs FolderSearcher, Folderizr also stores a local index of visible sidebar metadata: chat title, local chat URL, inferred folder path, and indexing timestamp.
 
+FolderSearcher may also store the most recent scan probe locally for troubleshooting. It contains only numeric DOM dimensions, timing, mutation counts, and scan progress counters. It does not contain chat titles, chat URLs, prompts, responses, or conversation contents.
+
 These values stay in the user's browser storage and are not transmitted by Folderizr.
 
 ## ChatGPT Content
@@ -39,6 +41,8 @@ Folderizr does not scrape, export, bulk-download, or programmatically extract Ch
 Folderizr only changes the local visual layout of the ChatGPT sidebar while enabled.
 
 FolderSearcher can export a JSON backup of its local index. This backup contains only indexed sidebar metadata and does not contain conversation contents.
+
+The optional scan-probe export contains only the local numeric troubleshooting metrics described above.
 
 ## Permissions
 

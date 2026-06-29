@@ -64,3 +64,6 @@ Use version `1.1.0` from the local branch `chore/v1.1-modernization`.
 13. Confirm the sidebar returns to its original scroll position after a completed or stopped scan.
 14. Navigate to another page during a scan and confirm FolderSearcher stops safely without losing the partial index.
 15. Confirm `Rescan chats` is disabled while a scan is already running.
+16. After the scan, click `Export scan probe` and confirm a diagnostic JSON is downloaded.
+17. Confirm the probe JSON contains numeric DOM/timing counters but no chat titles, chat URLs, or conversation contents.
+18. On a large history, confirm the scanner waits at the apparent bottom while delayed lazy-loading batches arrive instead of completing after a few short rounds.

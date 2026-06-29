@@ -2,6 +2,9 @@
   const STORAGE_KEY = "folderizrEnabled";
   const INDEX_KEY = "folderizrChatIndex";
   const LAST_BACKUP_KEY = "folderizrLastIndexBackupAt";
+  const DIAGNOSTICS_KEY = "folderizrLastScanDiagnostics";
+  const SCAN_QUIET_PERIOD_MS = 8000;
+  const MAX_SCAN_DURATION_MS = 15 * 60 * 1000;
   const LEGACY_KEYS = ["CGPTFolderizr_enabled", "CGPTFolderizr_EXT_enabled"];
   const SECTION_ATTR = "data-folderizr-section";
   const FOLDER_ATTR = "data-folderizr-folder";
@@ -16,6 +19,7 @@
   let rendering = false;
   let chatIndex = [];
   let lastIndexBackupAt = null;
+  let lastScanDiagnostics = null;
   let scannerRunning = false;
   let scannerAbortRequested = false;
 
@@ -76,9 +80,12 @@
   }
 
   async function readIndexState() {
-    const values = await storageGet([INDEX_KEY, LAST_BACKUP_KEY]);
+    const values = await storageGet([INDEX_KEY, LAST_BACKUP_KEY, DIAGNOSTICS_KEY]);
     chatIndex = Array.isArray(values[INDEX_KEY]) ? values[INDEX_KEY] : [];
     lastIndexBackupAt = typeof values[LAST_BACKUP_KEY] === "string" ? values[LAST_BACKUP_KEY] : null;
+    lastScanDiagnostics = values[DIAGNOSTICS_KEY] && typeof values[DIAGNOSTICS_KEY] === "object"
+      ? values[DIAGNOSTICS_KEY]
+      : null;
   }
 
   function injectStyles() {
@@ -578,6 +585,73 @@
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
+  function createScanProbe(scrollContainer) {
+    const startedAtMs = Date.now();
+    let mutationBatches = 0;
+    let mutatedNodes = 0;
+    let lastMutationAt = null;
+
+    const session = {
+      schemaVersion: 1,
+      startedAt: new Date(startedAtMs).toISOString(),
+      settings: {
+        quietPeriodMs: SCAN_QUIET_PERIOD_MS,
+        maxDurationMs: MAX_SCAN_DURATION_MS,
+      },
+      container: {
+        tagName: scrollContainer.tagName,
+        id: scrollContainer.id || null,
+        className: typeof scrollContainer.className === "string"
+          ? scrollContainer.className.slice(0, 500)
+          : null,
+        overflowY: getComputedStyle(scrollContainer).overflowY,
+      },
+      samples: [],
+    };
+
+    const probeObserver = new MutationObserver((mutations) => {
+      mutationBatches += 1;
+      mutatedNodes += mutations.reduce(
+        (total, mutation) => total + mutation.addedNodes.length + mutation.removedNodes.length,
+        0,
+      );
+      lastMutationAt = new Date().toISOString();
+    });
+    probeObserver.observe(scrollContainer, { childList: true, subtree: true });
+
+    return {
+      sample(event, details = {}) {
+        if (session.samples.length >= 2000) {
+          return;
+        }
+
+        session.samples.push({
+          event,
+          elapsedMs: Date.now() - startedAtMs,
+          scrollTop: Math.round(scrollContainer.scrollTop),
+          clientHeight: scrollContainer.clientHeight,
+          scrollHeight: scrollContainer.scrollHeight,
+          renderedChatLinks: document.querySelectorAll(
+            'nav[aria-label="Chat history"] a[href^="/c/"]',
+          ).length,
+          mutationBatches,
+          mutatedNodes,
+          lastMutationAt,
+          ...details,
+        });
+      },
+      stop(outcome) {
+        probeObserver.disconnect();
+        session.completedAt = new Date().toISOString();
+        session.durationMs = Date.now() - startedAtMs;
+        session.outcome = outcome;
+        session.totalMutationBatches = mutationBatches;
+        session.totalMutatedNodes = mutatedNodes;
+        return session;
+      },
+    };
+  }
+
   function updateScannerControls() {
     const panel = document.querySelector(`[${SEARCHER_ATTR}]`);
     if (!panel) {
@@ -607,10 +681,10 @@
     const scrollContainer = getChatScrollContainer();
     const originalScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
     let scannerObserver = null;
+    let scanProbe = null;
     let mutationObserved = false;
-    let noNewRounds = 0;
-    let stableHeightRounds = 0;
     let previousScrollHeight = scrollContainer ? scrollContainer.scrollHeight : 0;
+    let lastActivityAt = Date.now();
     let finalStatus = "";
 
     clearTimeout(renderTimer);
@@ -633,13 +707,20 @@
 
       scannerObserver = new MutationObserver(() => {
         mutationObserved = true;
+        lastActivityAt = Date.now();
       });
       scannerObserver.observe(scrollContainer, { childList: true, subtree: true });
+      scanProbe = createScanProbe(scrollContainer);
+      scanProbe.sample("scan-start", { indexedTotal: chatIndex.length });
 
       scrollContainer.scrollTop = 0;
+      scrollContainer.dispatchEvent(new Event("scroll", { bubbles: true }));
       await wait(250);
 
-      for (let round = 1; round <= 120; round += 1) {
+      const scanStartedAt = Date.now();
+      let round = 0;
+      while (Date.now() - scanStartedAt < MAX_SCAN_DURATION_MS) {
+        round += 1;
         if (scannerAbortRequested) {
           finalStatus = `Scan stopped. ${chatIndex.length} chats saved locally.`;
           break;
@@ -656,26 +737,38 @@
         chatIndex = mergeIndexItems(chatIndex, collectedItems);
 
         if (newCount > 0) {
-          noNewRounds = 0;
+          lastActivityAt = Date.now();
           await storageSet({ [INDEX_KEY]: chatIndex });
-        } else {
-          noNewRounds += 1;
         }
 
         const currentScrollHeight = scrollContainer.scrollHeight;
-        stableHeightRounds = currentScrollHeight === previousScrollHeight
-          ? stableHeightRounds + 1
-          : 0;
+        if (currentScrollHeight !== previousScrollHeight) {
+          lastActivityAt = Date.now();
+        }
         previousScrollHeight = currentScrollHeight;
 
         const atBottom = scrollContainer.scrollTop + scrollContainer.clientHeight
           >= currentScrollHeight - 8;
+        const quietForMs = Date.now() - lastActivityAt;
+
+        scanProbe.sample("round", {
+          round,
+          indexedTotal: chatIndex.length,
+          collectedVisible: collectedItems.length,
+          newCount,
+          atBottom,
+          quietForMs,
+          scannerMutationObserved: mutationObserved,
+        });
 
         if (statusElement) {
-          statusElement.textContent = `Scanning round ${round}: ${chatIndex.length} indexed, ${newCount} new`;
+          const waitMessage = atBottom
+            ? `, waiting ${Math.max(0, Math.ceil((SCAN_QUIET_PERIOD_MS - quietForMs) / 1000))}s for lazy loading`
+            : "";
+          statusElement.textContent = `Scanning round ${round}: ${chatIndex.length} indexed, ${newCount} new${waitMessage}`;
         }
 
-        if (atBottom && noNewRounds >= 3 && stableHeightRounds >= 2 && !mutationObserved) {
+        if (atBottom && quietForMs >= SCAN_QUIET_PERIOD_MS) {
           finalStatus = `Scan complete. ${chatIndex.length} chats indexed locally.`;
           break;
         }
@@ -686,11 +779,12 @@
           scrollContainer.scrollTop + scrollStep,
           Math.max(0, currentScrollHeight - scrollContainer.clientHeight),
         );
+        scrollContainer.dispatchEvent(new Event("scroll", { bubbles: true }));
         await wait(500);
+      }
 
-        if (round === 120) {
-          finalStatus = `Scan limit reached. ${chatIndex.length} chats saved locally.`;
-        }
+      if (!finalStatus) {
+        finalStatus = `15-minute scan limit reached. ${chatIndex.length} chats saved locally.`;
       }
     } catch (error) {
       log("scan failed", error);
@@ -698,6 +792,11 @@
     } finally {
       if (scannerObserver) {
         scannerObserver.disconnect();
+      }
+      if (scanProbe) {
+        scanProbe.sample("scan-end", { indexedTotal: chatIndex.length, finalStatus });
+        lastScanDiagnostics = scanProbe.stop(finalStatus || "Scan ended without a status.");
+        await storageSet({ [DIAGNOSTICS_KEY]: lastScanDiagnostics });
       }
       if (scrollContainer && scrollContainer.isConnected) {
         scrollContainer.scrollTop = originalScrollTop;
@@ -751,6 +850,27 @@
     lastIndexBackupAt = exportedAt;
     await storageSet({ [LAST_BACKUP_KEY]: exportedAt });
     renderSearcherTree();
+  }
+
+  function exportScanDiagnostics() {
+    if (!lastScanDiagnostics) {
+      return;
+    }
+
+    const exportedAt = new Date().toISOString();
+    const payload = {
+      name: "Folderizr scan probe diagnostics",
+      exportedAt,
+      privacy: "Numeric DOM, timing, mutation, and scan counters only. No chat titles, URLs, or conversation contents.",
+      session: lastScanDiagnostics,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `folderizr-scan-probe-${exportedAt.replace(/[:.]/g, "-")}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   function buildTree(items) {
@@ -826,6 +946,7 @@
     const treeContainer = panel.querySelector("[data-folderizr-searcher-tree]");
     const status = panel.querySelector("[data-folderizr-searcher-status]");
     const reminder = panel.querySelector("[data-folderizr-searcher-reminder]");
+    const diagnosticsButton = panel.querySelector("[data-folderizr-searcher-diagnostics]");
     const query = panel.querySelector("input").value.trim().toLowerCase();
     treeContainer.textContent = "";
 
@@ -838,6 +959,10 @@
     if (reminder) {
       reminder.hidden = !shouldShowBackupReminder();
       reminder.textContent = "Reminder: export a local backup of the Folderizr index after a substantial rescan.";
+    }
+
+    if (diagnosticsButton) {
+      diagnosticsButton.disabled = !lastScanDiagnostics;
     }
 
     const matchingItems = chatIndex.filter((item) => itemMatches(item, query));
@@ -891,6 +1016,7 @@
           <button type="button" data-folderizr-searcher-rescan>Rescan chats</button>
           <button type="button" data-folderizr-searcher-stop hidden>Stop scan</button>
           <button type="button" data-folderizr-searcher-export>Export index</button>
+          <button type="button" data-folderizr-searcher-diagnostics disabled>Export scan probe</button>
         </div>
         <div data-folderizr-searcher-status></div>
         <div data-folderizr-searcher-reminder hidden></div>
@@ -913,6 +1039,7 @@
       }
     });
     panel.querySelector("[data-folderizr-searcher-export]").addEventListener("click", exportIndexBackup);
+    panel.querySelector("[data-folderizr-searcher-diagnostics]").addEventListener("click", exportScanDiagnostics);
 
     document.documentElement.append(toggle, panel);
     renderSearcherTree();

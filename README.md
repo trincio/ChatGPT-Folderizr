@@ -37,7 +37,10 @@ Folderizr does not collect, transmit, sell, share, track, profile, or analyze us
 
 Stored values stay local in the browser. Folderizr stores the enable/disable preference and, if the user runs FolderSearcher, a local index of visible sidebar metadata: chat title, local chat URL, inferred folder path, and indexing timestamp.
 
+The most recent scan may also retain a local troubleshooting probe containing only numeric DOM dimensions, timing, mutation counts, and progress counters. It contains no chat titles, URLs, prompts, responses, or conversation contents.
+
 FolderSearcher export downloads only this local index. It does not export conversation contents.
+The separate scan-probe export downloads only the numeric troubleshooting metrics described above.
 
 ## Permissions
 
