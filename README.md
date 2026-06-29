@@ -35,7 +35,9 @@ The displayed chat title may hide the prefix visually, but Folderizr does not re
 
 Folderizr does not collect, transmit, sell, share, track, profile, or analyze user data. It does not include ads, analytics, telemetry, affiliate links, remote logging, backend services, or remote code.
 
-The only stored value is the local browser preference that remembers whether Folderizr is enabled or disabled.
+Stored values stay local in the browser. Folderizr stores the enable/disable preference and, if the user runs FolderSearcher, a local index of visible sidebar metadata: chat title, local chat URL, inferred folder path, and indexing timestamp.
+
+FolderSearcher export downloads only this local index. It does not export conversation contents.
 
 ## Permissions
 
@@ -70,6 +72,8 @@ The extension uses plain JavaScript, HTML, and CSS. There is no bundler, framewo
 Folderizr depends on ChatGPT's web UI. It may break or need updates if the ChatGPT sidebar markup changes.
 
 Folderizr only performs local visual organization of the sidebar. It does not scrape, export, bulk-download, or programmatically extract ChatGPT conversations or outputs. It does not call private or undocumented OpenAI endpoints and does not bypass rate limits, protections, authentication, paywalls, or platform restrictions.
+
+FolderSearcher currently indexes normal sidebar Chats only. Project chat indexing is not enabled by default and should remain a separate, explicit feature if added later.
 
 ## Files
 

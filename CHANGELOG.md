@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Added an experimental detached FolderSearcher panel.
+- Added manual `Rescan chats` for locally indexing visible normal sidebar Chats.
+- Added folder tree navigation from title prefixes such as `[GRAFICA/vettoriale]`.
+- Added search filtering that hides folder branches without matching descendants.
+- Added JSON export for the local FolderSearcher index only.
+- Added a local backup reminder after indexing.
+
 ## 1.1.0
 
 - Renamed the extension presentation to Folderizr, with ChatGPT mentioned only descriptively where needed.

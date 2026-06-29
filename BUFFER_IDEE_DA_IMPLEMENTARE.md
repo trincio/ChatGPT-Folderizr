@@ -6,12 +6,14 @@ Questo file raccoglie idee per versioni successive a Folderizr `1.1.0`.
 
 Obiettivo: aggiungere una funzione opzionale di indicizzazione locale delle chat visibili, attivata esplicitamente dall'utente.
 
+Stato: primo prototipo avviato su branch `feature/foldersearcher`.
+
 ### Rescan Chats
 
 - Aggiungere un pulsante `Rescan chats`.
 - Avviare la scansione solo su azione esplicita dell'utente.
 - Scorrere progressivamente la lista chat visibile, attendendo il caricamento dei nuovi elementi.
-- Prevedere uno stop manuale.
+- Prevedere uno stop manuale in una iterazione successiva.
 - Evitare chiamate API, endpoint privati, esportazioni o scraping dei contenuti delle conversazioni.
 - Indicizzare solo metadati visibili nella UI: titolo, URL locale della chat e data se visibile.
 
@@ -56,6 +58,8 @@ Regole da valutare:
 - Filtrare per cartella, sottocartella e tag dedotti.
 - Consentire apertura della chat tramite il link locale `/c/...`.
 - Mantenere chiaro che l'indice puo essere incompleto finche non viene eseguito un rescan.
+
+Prima scelta implementativa: pannello detached/standalone fuori dalla sidebar. Se i link standalone non bastano, valutare interazione con le voci originali della sidebar.
 
 ## v1.3 - Projects
 

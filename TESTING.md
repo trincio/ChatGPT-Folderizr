@@ -46,3 +46,15 @@ Use version `1.1.0` from the local branch `chore/v1.1-modernization`.
 - Native ChatGPT buttons remain visible and usable.
 - Disabling Folderizr reloads the page and restores ChatGPT's own sidebar rendering.
 - No data is collected or transmitted by Folderizr.
+
+## FolderSearcher Experimental Checks
+
+1. Enable Folderizr.
+2. Confirm the detached `FolderSearcher` button appears.
+3. Open FolderSearcher.
+4. Click `Rescan chats`.
+5. Confirm the status reports locally indexed chats.
+6. Confirm a title like `[GRAFICA/vettoriale] Operazioni JS` appears as `GRAFICA > vettoriale > Operazioni JS`.
+7. Type a search term and confirm folders without matching descendants disappear.
+8. Open a result and confirm it navigates to the chat using its normal `/c/...` link.
+9. Click `Export index` and confirm the JSON contains metadata only, not conversation contents.

@@ -26,15 +26,19 @@ Folderizr does not load or execute remote code. The extension runs from the file
 
 ## Local Storage
 
-Folderizr uses local browser extension storage only to remember whether the extension is enabled or disabled.
+Folderizr uses local browser extension storage to remember whether the extension is enabled or disabled.
 
-This preference stays in the user's browser storage and is not transmitted by Folderizr.
+If the user runs FolderSearcher, Folderizr also stores a local index of visible sidebar metadata: chat title, local chat URL, inferred folder path, and indexing timestamp.
+
+These values stay in the user's browser storage and are not transmitted by Folderizr.
 
 ## ChatGPT Content
 
-Folderizr does not scrape, export, bulk-download, or programmatically extract ChatGPT conversations or outputs. It does not call private or undocumented OpenAI endpoints and does not modify conversation data server-side.
+Folderizr does not scrape, export, bulk-download, or programmatically extract ChatGPT conversation contents or outputs. It does not call private or undocumented OpenAI endpoints and does not modify conversation data server-side.
 
 Folderizr only changes the local visual layout of the ChatGPT sidebar while enabled.
+
+FolderSearcher can export a JSON backup of its local index. This backup contains only indexed sidebar metadata and does not contain conversation contents.
 
 ## Permissions
 
