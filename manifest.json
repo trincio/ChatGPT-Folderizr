@@ -1,10 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "ChatGPT Folderizr",
-  "version": "1.0",
-  "description": "Organizes chats in folders in chat.openai.com",
+  "name": "Folderizr",
+  "version": "1.1.0",
+  "description": "Independent open-source browser extension. Not affiliated with, endorsed by, or sponsored by OpenAI. Visually groups ChatGPT sidebar chats by title prefix.",
   "permissions": [
-    "activeTab",
     "storage"
   ],
   "action": {
@@ -17,9 +16,14 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://chat.openai.com/*"],
-      "js": ["content.js"],
-      "run_at": "document_start"
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "icons": {
@@ -27,13 +31,10 @@
     "48": "images/icon48.png",
     "128": "images/icon128.png"
   },
-  "permissions": ["activeTab"],
-  "action": {
-    "default_popup": "popup.html",
-    "default_icon": {
-      "16": "images/icon16.png",
-      "48": "images/icon48.png",
-      "128": "images/icon128.png"
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "folderizr@example.com",
+      "strict_min_version": "109.0"
     }
   }
 }

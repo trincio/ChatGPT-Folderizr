@@ -1,58 +1,64 @@
-document.addEventListener('DOMContentLoaded', function () {
-  // Check if Chrome or Firefox storage API can be used
-  const isChrome = !!window.chrome && !!window.chrome.storage;
-  const isFirefox = typeof browser !== 'undefined' && !!browser.storage;
+const STORAGE_KEY = "folderizrEnabled";
+const LEGACY_KEYS = ["CGPTFolderizr_enabled", "CGPTFolderizr_EXT_enabled"];
+const api = globalThis.browser || globalThis.chrome;
 
-  // Select the appropriate storage API
-  const storage = isFirefox ? browser.storage.local : (isChrome ? chrome.storage.local : localStorage);
+function storageGet(keys) {
+  return new Promise((resolve) => {
+    const result = api.storage.local.get(keys, resolve);
+    if (result && typeof result.then === "function") {
+      result.then(resolve).catch(() => resolve({}));
+    }
+  });
+}
 
-  if (storage) {
-    // Load the current state from storage
-    const CGPTFolderizr_EXT_enabled = JSON.parse(storage.getItem('CGPTFolderizr_EXT_enabled')) || false;
-    const toggleButton = document.getElementById('toggleButton');
+function storageSet(values) {
+  return new Promise((resolve) => {
+    const result = api.storage.local.set(values, resolve);
+    if (result && typeof result.then === "function") {
+      result.then(resolve).catch(resolve);
+    }
+  });
+}
 
-    // Set the button text based on the current state
-    toggleButton.textContent = CGPTFolderizr_EXT_enabled ? 'Disable' : 'Enable';
-
-    // Add a listener for the button click event
-    toggleButton.addEventListener('click', function () {
-      // Read the current state
-      const CGPTFolderizr_EXT_enabled = JSON.parse(storage.getItem('CGPTFolderizr_EXT_enabled')) || false;
-
-      // Toggle the state
-      const newCGPTFolderizr_EXT_enabled = !CGPTFolderizr_EXT_enabled;
-
-      // Store the new state
-      storage.setItem('CGPTFolderizr_EXT_enabled', JSON.stringify(newCGPTFolderizr_EXT_enabled));
-
-      // Update the button text
-      toggleButton.textContent = newCGPTFolderizr_EXT_enabled ? 'Disable' : 'Enable';
-
-      // Send a message to the content script
-      chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-        chrome.tabs.sendMessage(tabs[0].id, { action: 'updateCGPTFolderizr_enabled', newValue: newCGPTFolderizr_EXT_enabled });
-      });
-    });
+async function getEnabledState() {
+  const values = await storageGet([STORAGE_KEY, ...LEGACY_KEYS]);
+  if (typeof values[STORAGE_KEY] === "boolean") {
+    return values[STORAGE_KEY];
   }
-  
-  
- //GUI HANDLING
 
+  const legacyValue = LEGACY_KEYS
+    .map((key) => values[key])
+    .find((value) => typeof value === "boolean");
 
-// Aggiungi un gestore per il pulsante di descrizione
-const toggleDescriptionButton = document.getElementById('toggleDescription');
-const descriptionContent = document.getElementById('description_content');
-
-toggleDescriptionButton.addEventListener('click', () => {
-  if (descriptionContent.style.display === 'none') {
-    descriptionContent.style.display = 'block';
-  } else {
-    descriptionContent.style.display = 'none';
+  if (typeof legacyValue === "boolean") {
+    await storageSet({ [STORAGE_KEY]: legacyValue });
+    return legacyValue;
   }
-});
- 
-  
-  
-});
 
+  return false;
+}
 
+function updateUi(enabled) {
+  document.getElementById("statusText").textContent = enabled ? "Folderizr is enabled." : "Folderizr is disabled.";
+  document.getElementById("toggleButton").textContent = enabled ? "Disable" : "Enable";
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const toggleButton = document.getElementById("toggleButton");
+  const detailsButton = document.getElementById("toggleDetails");
+  const details = document.getElementById("details");
+
+  let enabled = await getEnabledState();
+  updateUi(enabled);
+
+  toggleButton.addEventListener("click", async () => {
+    enabled = !enabled;
+    await storageSet({ [STORAGE_KEY]: enabled });
+    updateUi(enabled);
+  });
+
+  detailsButton.addEventListener("click", () => {
+    const hidden = details.getAttribute("aria-hidden") !== "true";
+    details.setAttribute("aria-hidden", String(hidden));
+  });
+});

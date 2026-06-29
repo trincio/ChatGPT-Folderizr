@@ -1,252 +1,372 @@
-// Function for organizing conversations into folders (include it here or you can keep the original code)
-function organizeConversationsIntoFolders(org_enabled) {
-  // Select all LI elements of conversations
-  const conversations = document.querySelectorAll('.relative[data-projection-id] li.relative[data-projection-id]');
-  
-  // Create an object to store folders and their conversations
-  const folders = {};
+(() => {
+  const STORAGE_KEY = "folderizrEnabled";
+  const LEGACY_KEYS = ["CGPTFolderizr_enabled", "CGPTFolderizr_EXT_enabled"];
+  const FOLDER_ATTR = "data-folderizr-folder";
+  const ITEM_ATTR = "data-folderizr-item";
+  const api = globalThis.browser || globalThis.chrome;
 
-  // Identify existing folders in the DOM created earlier
-  const existingFolders = document.querySelectorAll('.folder h2');
+  let enabled = false;
+  let observer = null;
+  let renderTimer = null;
+  let rendering = false;
 
-  existingFolders.forEach(folderH2 => {
-    const folderName = folderH2.textContent;
-    const conversationsOl = folderH2.nextElementSibling;
+  const log = (...args) => console.info("Folderizr:", ...args);
 
-    folders[folderName] = {
-      folderH2,
-      conversationsOl,
+  function storageGet(keys) {
+    return new Promise((resolve) => {
+      if (!api || !api.storage || !api.storage.local) {
+        resolve({});
+        return;
+      }
+
+      try {
+        const result = api.storage.local.get(keys, resolve);
+        if (result && typeof result.then === "function") {
+          result.then(resolve).catch(() => resolve({}));
+        }
+      } catch (error) {
+        resolve({});
+      }
+    });
+  }
+
+  function storageSet(values) {
+    return new Promise((resolve) => {
+      if (!api || !api.storage || !api.storage.local) {
+        resolve();
+        return;
+      }
+
+      try {
+        const result = api.storage.local.set(values, resolve);
+        if (result && typeof result.then === "function") {
+          result.then(resolve).catch(resolve);
+        }
+      } catch (error) {
+        resolve();
+      }
+    });
+  }
+
+  async function readEnabledState() {
+    const values = await storageGet([STORAGE_KEY, ...LEGACY_KEYS]);
+    if (typeof values[STORAGE_KEY] === "boolean") {
+      return values[STORAGE_KEY];
+    }
+
+    const legacyValue = LEGACY_KEYS
+      .map((key) => values[key])
+      .find((value) => typeof value === "boolean");
+
+    if (typeof legacyValue === "boolean") {
+      await storageSet({ [STORAGE_KEY]: legacyValue });
+      return legacyValue;
+    }
+
+    return false;
+  }
+
+  function injectStyles() {
+    if (document.getElementById("folderizr-styles")) {
+      return;
+    }
+
+    const style = document.createElement("style");
+    style.id = "folderizr-styles";
+    style.textContent = `
+      [${FOLDER_ATTR}] {
+        margin: 2px 0;
+      }
+
+      [${FOLDER_ATTR}] > button {
+        align-items: center;
+        background: transparent;
+        border: 0;
+        border-radius: 6px;
+        color: inherit;
+        cursor: pointer;
+        display: flex;
+        font: inherit;
+        gap: 6px;
+        justify-content: space-between;
+        min-height: 32px;
+        padding: 6px 8px;
+        text-align: left;
+        width: 100%;
+      }
+
+      [${FOLDER_ATTR}] > button:hover,
+      [${FOLDER_ATTR}] > button:focus-visible {
+        background: color-mix(in srgb, currentColor 9%, transparent);
+        outline: none;
+      }
+
+      [${FOLDER_ATTR}] [data-folderizr-name] {
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      [${FOLDER_ATTR}] [data-folderizr-count] {
+        opacity: 0.68;
+      }
+
+      [${FOLDER_ATTR}] [data-folderizr-list] {
+        list-style: none;
+        margin: 0;
+        padding: 0 0 0 10px;
+      }
+
+      [${FOLDER_ATTR}][data-collapsed="true"] [data-folderizr-list] {
+        display: none;
+      }
+    `;
+    document.documentElement.appendChild(style);
+  }
+
+  function scheduleRender() {
+    if (!enabled || rendering) {
+      return;
+    }
+
+    clearTimeout(renderTimer);
+    renderTimer = setTimeout(renderFolders, 120);
+  }
+
+  function getConversationItems() {
+    const links = Array.from(document.querySelectorAll('a[href*="/c/"]'));
+    const seen = new Set();
+
+    return links
+      .map((link) => {
+        if (link.closest(`[${FOLDER_ATTR}]`)) {
+          return null;
+        }
+
+        const item = link.closest("li") || link;
+        if (!item || seen.has(item)) {
+          return null;
+        }
+
+        seen.add(item);
+        return { item, link };
+      })
+      .filter(Boolean);
+  }
+
+  function findTitleTextNode(link) {
+    const walker = document.createTreeWalker(link, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        return node.nodeValue.trim()
+          ? NodeFilter.FILTER_ACCEPT
+          : NodeFilter.FILTER_REJECT;
+      },
+    });
+
+    let bestNode = null;
+    while (walker.nextNode()) {
+      if (!bestNode || walker.currentNode.nodeValue.trim().length > bestNode.nodeValue.trim().length) {
+        bestNode = walker.currentNode;
+      }
+    }
+
+    return bestNode;
+  }
+
+  function parseFolderTitle(title) {
+    const match = title.trim().match(/^\[([^\]\r\n]+)\]\s*(.+)$/);
+    if (!match) {
+      return null;
+    }
+
+    return {
+      folderName: match[1].trim(),
+      displayTitle: match[2].trim(),
     };
-  });
+  }
 
-  // Iterate through all conversations
-  conversations.forEach(conversation => {
-    // Find the text of the conversation name
-    const conversationText = conversation.querySelector('.flex-1.text-ellipsis').textContent;
+  function restoreExistingFolders() {
+    document.querySelectorAll(`[${FOLDER_ATTR}]`).forEach((folder) => {
+      const parent = folder.parentElement;
+      const list = folder.querySelector("[data-folderizr-list]");
 
-    // Search for the folder name within square brackets
-    const matchFolder = conversationText.match(/\[(.*?)\]/);
-
-    if (matchFolder) {
-      // If a folder is present, extract the name
-      const folderName = matchFolder[1];
-
-      // If the folder doesn't exist yet, create it
-      if (!folders[folderName]) {
-        // Create a <div> element for the folder
-        const folderDiv = document.createElement('div');
-        folderDiv.className = 'folder';
-
-        // Create an <h2> element for the folder name
-        const folderNameH2 = document.createElement('h2');
-        folderNameH2.textContent = folderName;
-
-        // Create an <ol> element for conversations
-        const conversationsOl = document.createElement('ol');
-
-        // Add the folder name and conversation list to the folder div
-        folderDiv.appendChild(folderNameH2);
-        folderDiv.appendChild(conversationsOl);
-
-        // Add the folder to the folders object
-        folders[folderName] = {
-          folderNameH2,
-          conversationsOl,
-        };
-
-        // Insert the folder into the DOM
-        const insertionPosition = conversation.parentElement;
-        insertionPosition.insertBefore(folderDiv, conversation);
+      if (parent && list) {
+        Array.from(list.children).forEach((child) => {
+          parent.insertBefore(child, folder);
+        });
       }
 
-      // Move the conversation under the current folder
-      const currentFolder = folders[folderName];
-      currentFolder.conversationsOl.appendChild(conversation);
+      folder.remove();
+    });
+  }
 
-      // Remove the folder name from the conversation text
-      const newConversationText = conversationText.replace(`[${folderName}]`, '').trim();
-      conversation.querySelector('.flex-1.text-ellipsis').textContent = newConversationText;
+  function restoreVisibleTitles(root = document) {
+    root.querySelectorAll(`[${ITEM_ATTR}]`).forEach((item) => {
+      const link = item.querySelector('a[href*="/c/"]') || item;
+      const titleNode = findTitleTextNode(link);
+      if (titleNode && item.dataset.folderizrOriginalTitle) {
+        titleNode.nodeValue = item.dataset.folderizrOriginalTitle;
+      }
+      delete item.dataset.folderizrOriginalTitle;
+      item.removeAttribute(ITEM_ATTR);
+    });
+  }
 
-      // Disable and hide buttons in the conversations
-      const conversationButtons = conversation.querySelectorAll('button'); // Update the selector
-      conversationButtons.forEach(button => {
-        button.style.visibility = 'hidden';
-        button.disabled = true;
+  function createFolder(folderName) {
+    const folder = document.createElement("li");
+    folder.setAttribute(FOLDER_ATTR, "");
+    folder.dataset.collapsed = "false";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("aria-expanded", "true");
+
+    const name = document.createElement("span");
+    name.dataset.folderizrName = "";
+    name.textContent = folderName;
+
+    const count = document.createElement("span");
+    count.dataset.folderizrCount = "";
+
+    const list = document.createElement("ol");
+    list.dataset.folderizrList = "";
+
+    button.append(name, count);
+    folder.append(button, list);
+
+    button.addEventListener("click", () => {
+      const collapsed = folder.dataset.collapsed !== "true";
+      folder.dataset.collapsed = String(collapsed);
+      button.setAttribute("aria-expanded", String(!collapsed));
+    });
+
+    return { folder, list, count };
+  }
+
+  function renderFolders() {
+    if (!enabled || rendering || !document.body) {
+      return;
+    }
+
+    rendering = true;
+    if (observer) {
+      observer.disconnect();
+    }
+
+    try {
+      injectStyles();
+      restoreExistingFolders();
+      restoreVisibleTitles();
+
+      const groups = new Map();
+
+      getConversationItems().forEach(({ item, link }) => {
+        const titleNode = findTitleTextNode(link);
+        const title = titleNode ? titleNode.nodeValue.trim() : link.textContent.trim();
+        const parsed = parseFolderTitle(title);
+
+        if (!parsed || !parsed.folderName || !parsed.displayTitle) {
+          return;
+        }
+
+        if (!groups.has(parsed.folderName)) {
+          groups.set(parsed.folderName, []);
+        }
+
+        groups.get(parsed.folderName).push({ item, titleNode, title, displayTitle: parsed.displayTitle });
       });
-	  
 
-  // Get the current background color
-  const currentBackgroundColor = window.getComputedStyle(conversation).backgroundColor;
+      groups.forEach((entries, folderName) => {
+        const firstItem = entries[0].item;
+        const parent = firstItem.parentElement;
+        if (!parent) {
+          return;
+        }
 
-  // Calculate a slightly greener shade
-  const newBackgroundColor = calculateSlightlyGreenerColor(currentBackgroundColor);
+        const folder = createFolder(folderName);
+        parent.insertBefore(folder.folder, firstItem);
 
-  // Apply the new background color
-  conversation.style.backgroundColor = newBackgroundColor;
+        entries.forEach(({ item, titleNode, title, displayTitle }) => {
+          item.setAttribute(ITEM_ATTR, "");
+          item.dataset.folderizrOriginalTitle = title;
+          if (titleNode) {
+            titleNode.nodeValue = displayTitle;
+          }
+          folder.list.appendChild(item);
+        });
 
-  conversation.style.padding = '5px'; // Add some padding around the conversation to make it more noticeable
- 
-	  
-    }
-  });
-  
-  
-// Aggiungi uno stile alle cartelle per renderle identificabili
-Object.values(folders).forEach(folder => {
-  //folder.folderNameH2.style.backgroundColor = 'lightblue'; // Modifica il colore a tuo piacimento
-  folder.folderNameH2.style.padding = '5px'; // Aggiungi uno spazio intorno al testo per renderlo più evidente
-});  
-  
-
-  // Periodically, check and reapply visibility and button enablement settings
-  setInterval(() => {
-    conversations.forEach(conversation => {
-      const conversationButtons = conversation.querySelectorAll('button'); // Update the selector
-      conversationButtons.forEach(button => {
-        button.style.visibility = 'hidden';
-        button.disabled = true;
+        folder.count.textContent = String(entries.length);
       });
-    });
-  }, 300); // Check every second (you can adjust the value based on your needs)
-
-  // Add CSS styles for expanding and collapsing folders
-  const style = document.createElement('style');
-  style.textContent = `
-    .folder ol {
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.2s ease-out;
-    }
-
-    .folder.expanded ol {
-      max-height: 1000px; /* Set a high maximum value to allow full expansion */
-      transition: max-height 0.2s ease-in;
-    }
-  `;
-
-  document.head.appendChild(style);
-
-  const allFolders = document.querySelectorAll('.folder');
-
-  allFolders.forEach(folder => {
-    const folderNameH2 = folder.querySelector('h2');
-    folderNameH2.addEventListener('click', () => {
-      // Check if the folder is expanded
-      const isExpanded = folder.classList.contains('expanded');
-
-      // If it's expanded, remove the 'expanded' class (close the folder), otherwise, add it (expand the folder)
-      if (isExpanded) {
-        folder.classList.remove('expanded');
-        console.log("Folder closed");
-      } else {
-        folder.classList.add('expanded');
-        console.log("Folder expanded");
+    } finally {
+      rendering = false;
+      if (observer && document.body) {
+        observer.observe(document.body, { childList: true, subtree: true });
       }
-    });
-  });
-}
+    }
+  }
 
-// MAIN: Preliminary check
- 
-// Check if Chrome or Firefox storage API can be used
-const isChrome = !!window.chrome && !!window.chrome.storage;
-const isFirefox = typeof browser !== 'undefined' && !!browser.storage;
-const isEdge = typeof window.msBrowser !== 'undefined' && typeof window.chrome !== 'undefined' && !!window.chrome.storage && !isFirefox;
+  function restoreSidebarAndReload() {
+    enabled = false;
+    clearTimeout(renderTimer);
+    restoreExistingFolders();
+    restoreVisibleTitles();
+    location.reload();
+  }
 
-// Select the appropriate storage API
-const storage = isFirefox ? browser.storage.local : (isChrome ? chrome.storage.local : localStorage);
+  function observePage() {
+    if (observer || !document.body) {
+      return;
+    }
 
-// Display the detected browser type
-var browserType = "'other'";
-if (isChrome) browserType = "'Chrome-like'";
-if (isFirefox) browserType = "'Firefox-like'";
-if (isEdge) browserType = "'Edge-like'";
-console.log("Folderizr: Storage browser found. Browser type: " + browserType);
+    observer = new MutationObserver(scheduleRender);
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
 
-function waitForConversationsToLoad(org_enabled) {
-  const conversations = document.querySelectorAll('.relative[data-projection-id] li.relative[data-projection-id]');
+  async function initialize() {
+    enabled = await readEnabledState();
+    observePage();
 
-  if (conversations.length === 0) {
-    console.log("ChatGPT Folderizr: Conversations not found, still loading or the DOM structure may have been modified by chatGPT developers. ChatGPT Folderizr will retry later.");
-    // Periodically, retry waitForConversationsToLoad
-    setTimeout(() => {
-      waitForConversationsToLoad(org_enabled);
-    }, 1000); // Retry every second (adjust the value as needed)
+    if (enabled) {
+      renderFolders();
+    } else {
+      log("disabled. Enable Folderizr from the extension popup.");
+    }
+
+    if (api && api.storage && api.storage.onChanged) {
+      api.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName !== "local" || !changes[STORAGE_KEY]) {
+          return;
+        }
+
+        enabled = Boolean(changes[STORAGE_KEY].newValue);
+        if (enabled) {
+          renderFolders();
+        } else {
+          restoreSidebarAndReload();
+        }
+      });
+    }
+
+    if (api && api.runtime && api.runtime.onMessage) {
+      api.runtime.onMessage.addListener((message) => {
+        if (!message || message.action !== "folderizrStateChanged") {
+          return;
+        }
+
+        enabled = Boolean(message.enabled);
+        if (enabled) {
+          renderFolders();
+        } else {
+          restoreSidebarAndReload();
+        }
+      });
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initialize, { once: true });
   } else {
-    console.log("ChatGPT Folderizr: Conversations loaded, organizing now.");
-    organizeConversationsIntoFolders(org_enabled);
+    initialize();
   }
-}
-
-document.addEventListener('DOMContentLoaded', function () {
-  // Load the current state from storage and execute conversation organization if enabled
-  if (isEdge || !isChrome && !isFirefox) {
-    const CGPTFolderizr_enabled = JSON.parse(localStorage.getItem('CGPTFolderizr_enabled')) || false;
-
-    if (CGPTFolderizr_enabled) {
-      console.log("ChatGPT Folderizr: set up the folders.");
-      // Wait for conversations to load and then execute organization
-      waitForConversationsToLoad(CGPTFolderizr_enabled);
-    } else {
-      console.log("ChatGPT Folderizr: Extension option disabled. Go to the extension icon and popup to enable the folderizer feature.");
-    }
-  } else {
-    storage.get('CGPTFolderizr_enabled', function (result) {
-      const CGPTFolderizr_enabled = result.CGPTFolderizr_enabled || false;
-
-      if (CGPTFolderizr_enabled) {
-        console.log("ChatGPT Folderizr: set up the folders.");
-        // Wait for conversations to load and then execute organization
-        waitForConversationsToLoad(CGPTFolderizr_enabled);
-      } else {
-        console.log("ChatGPT Folderizr: Extension option disabled. Go to the extension icon and popup to enable the folderizer feature.");
-      }
-    });
-  }
-});
-
-// Listen for messages from the popup script
-chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
-  if (request.action === 'updateCGPTFolderizr_enabled') {
-    // Here, you can update the variable in the webpage script
-    // using request.newValue or as needed.
-    console.log('ChatGPT Folderizr: Received new action updateCGPTFolderizr_enabled with value:', request.newValue);
-
-    // Update the data
-    if (isEdge || !isChrome && !isFirefox) {
-      localStorage.setItem('CGPTFolderizr_enabled', JSON.stringify(request.newValue));
-    } else {
-      storage.set({ 'CGPTFolderizr_enabled': request.newValue });
-    }
-
-    if (request.newValue) {
-      // Execute conversation organization if enabled
-      waitForConversationsToLoad(request.newValue);
-    } else {
-      alert("Once the ChatGPT Folderizr Extension activities are disabled, it is needed to reload the page for the standard ChatGPT folder setup. when the page is reloaded, you will find the conversation names with their original names, and you can modify or delete them.");
-      // Reload the current page
-      location.reload();
-    }
-  }
-});
-
-
-
-//helper functions
-
-// calculates a slightly green color
-function calculateSlightlyGreenerColor(color) {
-  //get the rgb
-  const match = color.match(/\d+/g);
-  const red = parseInt(match[0]);
-  const green = parseInt(match[1]);
-  const blue = parseInt(match[2]);
-
-  //  increases the green
-  const newGreen = Math.min(green + 20, 255);
-
-  // creates and returns the color
-  const newColor = `rgb(${red}, ${newGreen}, ${blue})`;
-
-  return newColor;
-}
+})();
