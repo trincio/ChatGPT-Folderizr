@@ -1,94 +1,84 @@
-# ChatGPT Folderizr Extension
+# Folderizr
 
-ChatGPT Folderizr is a browser extension that enhances the chat experience on chat.openai.com by organizing conversations into folders. This extension provides a convenient way to manage and categorize your chat conversations, making it easier to stay organized.
+Independent open-source browser extension. Not affiliated with, endorsed by, or sponsored by OpenAI.
 
-## Project Overview
+Folderizr is a small browser extension that visually groups ChatGPT sidebar conversations by title prefix. It is designed for `https://chatgpt.com/*` and `https://chat.openai.com/*`.
 
-ChatGPT Folderizr was developed as a browser extension (for Microsoft Edge in the current, first version) to add functionality to the chat.openai.com platform. It addresses the need for conversation organization, which is not natively supported on the platform. The extension adds a feature that allows users to create folders for their conversations and move chats into these folders based on specified naming conventions.
+## What It Does
+
+Folderizr looks at the visible titles in the ChatGPT sidebar. If a title starts with a bracketed folder name, the extension groups that chat under a local visual folder.
+
+Example:
+
+```text
+[Work] Project update
+[Music] Synth setup
+Unsorted idea
+```
+
+When enabled, the sidebar may display:
+
+```text
+Work
+  Project update
+Music
+  Synth setup
+Unsorted idea
+```
+
+The displayed chat title may hide the prefix visually, but Folderizr does not rename the underlying ChatGPT conversation and does not modify conversation data server-side.
+
+## Privacy And Data Use
+
+Folderizr does not collect, transmit, sell, share, track, profile, or analyze user data. It does not include ads, analytics, telemetry, affiliate links, remote logging, backend services, or remote code.
+
+The only stored value is the local browser preference that remembers whether Folderizr is enabled or disabled.
+
+## Permissions
+
+- `storage`: stores the local enable/disable preference.
+
+Folderizr does not request permission to read data from arbitrary websites. Its content script is limited to:
+
+- `https://chatgpt.com/*`
+- `https://chat.openai.com/*`
+
+## Browser Support
+
+Folderizr targets Manifest V3 browsers:
+
+- Firefox
+- Google Chrome
+- Microsoft Edge
+
+The extension uses plain JavaScript, HTML, and CSS. There is no bundler, framework, analytics SDK, or backend.
 
 ## Usage
 
-Using ChatGPT Folderizr is simple and straightforward:
+1. Install the extension as an unpacked or temporary extension in your browser.
+2. Open ChatGPT at `https://chatgpt.com/` or, if reachable, `https://chat.openai.com/`.
+3. Rename conversations manually in ChatGPT so the visible title starts with a folder prefix, such as `[Work] Project update`.
+4. Open the Folderizr extension popup.
+5. Click `Enable`.
+6. Click `Disable` to turn Folderizr off. The page reloads so ChatGPT can restore its original sidebar layout.
 
-1. Install the extension using the local extension installation (**a marketplace link will be provided later on**).
+## Known Limitations
 
-2. Once the extension is installed, you will see its icon in your browser's toolbar.
+Folderizr depends on ChatGPT's web UI. It may break or need updates if the ChatGPT sidebar markup changes.
 
-3. Navigate to [chat.openai.com](https://chat.openai.com/) to access your chat conversations.
+Folderizr only performs local visual organization of the sidebar. It does not scrape, export, bulk-download, or programmatically extract ChatGPT conversations or outputs. It does not call private or undocumented OpenAI endpoints and does not bypass rate limits, protections, authentication, paywalls, or platform restrictions.
 
-4. To enable the conversation organization feature, click on the ChatGPT Folderizr icon in the toolbar.
+## Files
 
-5. ChatGPT Folderizr will automatically organize your conversations into folders based on specified naming conventions. Conversations with folder names enclosed in square brackets, e.g., `[Work] Project Update`, will be categorized under the corresponding folder (e.g., "Work").
+- `manifest.json`: extension manifest and permissions.
+- `content.js`: local visual grouping logic for the ChatGPT sidebar.
+- `popup.html`: extension popup UI.
+- `popup.js`: enable/disable preference handling.
+- `privacy.md`: privacy policy.
+- `STORE_LISTINGS.md`: draft store listing copy.
+- `TESTING.md`: manual test checklist.
+- `CHANGELOG.md`: release history.
 
-6. You can also disable the extension at any time by clicking the extension icon again.
+## License
 
-## Example Conversation List
-
-Here's an example of how your conversation list might look before and after enabling ChatGPT Folderizr:
-
-### Before Enabling
-
-- Chat 1
-- Chat 2
-- [Work] Project Update
-- [Personal] Weekend Plans
-- Chat 3
-- [Work] Monthly Report
-
-### After Enabling
-
-- Chat 1
-- Chat 2
-- Work
-  - Project Update
-  - Monthly Report
-- Personal
-  - Weekend Plans
-- Chat 3
-
-Note: Conversations without square brackets remain unaffected by the folderization process.
-
-
-
-## Architectural Choices
-
-### Storage API Compatibility
-
-One of the key architectural choices of ChatGPT Folderizr was to make it compatible with different browsers. The extension checks whether it is running in a Chrome-like, Firefox-like, or Edge-like environment to use the appropriate storage API (e.g., `localStorage`, `chrome.storage`, or `browser.storage`).
-
-#### NOTE:
-This compatibility ensures that the extension can work seamlessly across multiple browsers, once they support the newer versions of the manifest. At the moment, despite the efforts, it *runs only in Edge*.
-
-### Content Script Execution Timing
-
-To ensure that conversation organization is applied correctly, the extension waits for the DOM to fully load before executing its content script. This approach guarantees that the extension can access and manipulate chat conversations once they are available in the DOM.
-
-### User Interaction through Popup
-
-The extension provides user interaction through a popup, allowing users to enable or disable the conversation organization feature. The popup interface displays a brief description of the extension's functionality and offers a button to toggle the feature on or off.
-
-### Dynamic Styling
-
-The extension utilizes dynamic styling to visually enhance the chat interface. It introduces CSS rules that expand and hide conversation folders as needed, improving the user experience.
-
-### Reloading for Consistency
-
-Due to architectural constraints, renaming or deleting conversations while the extension is active can lead to unpredictable behavior. Therefore, the extension recommends disabling it before making any changes. Upon disabling the extension, it triggers a page reload to ensure consistency in the chat interface.
-
-## File Descriptions
-
-- `manifest.json`: The extension's manifest file, specifying permissions, scripts, and icons.
-- `content.js`: The content script responsible for organizing conversations into folders.
-- `popup.js`: The script for the extension's popup interface, enabling users to toggle the feature on or off.
-- `popup.html`: The HTML file defining the content and layout of the popup interface.
-- `images/`: A directory containing icons used by the extension.
-
-## Development Considerations
-
-- The extension may not function correctly if the structure of the chat.openai.com platform changes significantly in future updates.
-- Renaming or deleting conversations while the extension is active can lead to unpredictable behavior, so it is recommended to disable the extension before making such changes.
-- Compatibility with different browsers is ensured through the use of appropriate storage APIs.
-
-## Conclusion
-
-ChatGPT Folderizr enhances the chat experience on chat.openai.com by providing a user-friendly conversation organization feature. It offers compatibility with various browsers, employs dynamic styling for improved visuals, and recommends a page reload for consistency. While it enhances the user experience, it also acknowledges potential challenges arising from changes in the underlying chat platform.
+This project remains free and open source under the existing license.

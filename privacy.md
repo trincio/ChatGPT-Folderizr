@@ -1,106 +1,54 @@
-# 🇮🇹 Informativa sulla Privacy - ChatGPT Folderizr
+# Privacy Policy
 
-## Introduzione
+Independent open-source browser extension. Not affiliated with, endorsed by, or sponsored by OpenAI.
 
-Sono felice di condividere con te questa informativa sulla privacy, anche se, francamente, non avrei mai pensato di doverla scrivere per uno strumento open source come ChatGPT Folderizr. Il mio obiettivo principale con questa estensione è fornire un'utilità aggiuntiva agli utenti, senza alcun impatto sulla loro privacy.
+Folderizr is a local browser extension that visually groups ChatGPT sidebar conversations by bracketed title prefix.
 
-Tuttavia, comprendo che in un mondo sempre più regolamentato è necessario seguire procedure e normative, anche per un progetto open source come il mio. In questo documento, spiegherò chiaramente come gestisco i dati e cosa puoi aspettarti dall'uso di ChatGPT Folderizr.
+## Data Collection
 
-Una delle priorità principali è la tua privacy. ChatGPT Folderizr è stato creato con l'intenzione di rendere la tua esperienza di chat su chat.openai.com più efficiente e organizzata, senza alcuna intrusione nella tua vita digitale.
+Folderizr does not collect user data.
 
-Ti ringrazio per il tuo supporto e la tua comprensione mentre condivido queste informazioni necessarie, anche se non sempre gradite. La tua fiducia è fondamentale per me.
+It does not collect personal information, ChatGPT conversations, prompts, outputs, browsing history, account details, identifiers, usage events, or diagnostics.
 
-Grazie per aver scelto ChatGPT Folderizr!
+## Data Transmission
 
-## Per gli Utenti come te
+Folderizr does not transmit user data.
 
-### Raccolta di Informazioni
+It has no backend service, no remote logging, no telemetry endpoint, no analytics service, no advertising service, and no affiliate tracking.
 
-ChatGPT Folderizr è un'estensione del browser open source progettata per organizzare conversazioni all'interno della pagina web chat.openai.com. L'estensione **non** raccoglie, memorizza o trasmette alcuna informazione personale o sensibile degli utenti. **non** effettua tracciamento, profilazione o qualsiasi forma di monitoraggio degli utenti.
+## Tracking And Profiling
 
-### Uso delle Informazioni
+Folderizr does not track users, profile users, fingerprint users, sell data, share data, or use analytics.
 
-ChatGPT Folderizr opera interamente sul tuo dispositivo e **non** invia dati a server esterni. **Non** richiede accesso a informazioni personali o sensibili. L'estensione funziona esclusivamente per migliorare l'organizzazione delle conversazioni nell'interfaccia web di chat.openai.com.
+## Remote Code
 
-### Condivisione di Informazioni
+Folderizr does not load or execute remote code. The extension runs from the files included in the extension package.
 
-L'estensione **non** condivide alcuna informazione con terze parti o servizi esterni. **Non** vi è alcun trasferimento di dati in uscita.
+## Local Storage
 
-### Sicurezza
+Folderizr uses local browser extension storage only to remember whether the extension is enabled or disabled.
 
-La sicurezza è una mia priorità. ChatGPT Folderizr è stato progettato per essere il più sicuro possibile e **non** comporta rischi per la tua privacy o la tua sicurezza online.
+This preference stays in the user's browser storage and is not transmitted by Folderizr.
 
-## Per Legulei, Azzeccagarbugli ed Affini
+## ChatGPT Content
 
-### Raccolta di Informazioni
+Folderizr does not scrape, export, bulk-download, or programmatically extract ChatGPT conversations or outputs. It does not call private or undocumented OpenAI endpoints and does not modify conversation data server-side.
 
-ChatGPT Folderizr **non** raccoglie, memorizza o trasmette alcuna informazione personale o sensibile degli utenti. L'estensione **non** effettua tracciamento, profilazione o qualsiasi forma di monitoraggio degli utenti.
+Folderizr only changes the local visual layout of the ChatGPT sidebar while enabled.
 
-### Condivisione di Informazioni
+## Permissions
 
-L'estensione **non** condivide alcuna informazione con terze parti o servizi esterni. **Non** vi è alcun trasferimento di dati in uscita.
+Folderizr uses the `storage` permission to save the local enable/disable preference.
 
-## Aggiornamenti
+Its content script runs only on:
 
-L'estensione potrebbe ricevere aggiornamenti futuri per migliorare le sue funzionalità o la sua compatibilità con nuove versioni del browser. Gli aggiornamenti saranno distribuiti tramite le rispettive piattaforme di distribuzione (ad esempio, Chrome Web Store o Microsoft Edge Addons) e verranno installati automaticamente.
+- `https://chatgpt.com/*`
+- `https://chat.openai.com/*`
 
-## Contatti
+## Limitations
 
-Per domande, preoccupazioni o richieste relative alla privacy, non esitare a contattarmi secondo i canali convenzionali.
-
-Grazie per la tua fiducia e il tuo sostegno continuo a ChatGPT Folderizr.
-
-
------
-
-# 🇬🇧 Privacy Policy - ChatGPT Folderizr
-
-## Introduction
-
-I'm pleased to share with you this privacy policy, even though, quite frankly, I never thought I'd have to write one for an open-source tool like ChatGPT Folderizr. My primary goal with this extension is to provide an additional utility to users without impacting their privacy in any way.
-
-However, I understand that in an increasingly regulated world, it's necessary to follow procedures and regulations, even for an open-source project like mine. In this document, I will clearly explain how I handle data and what you can expect from using ChatGPT Folderizr.
-
-Your privacy and online well-being are my top priorities. ChatGPT Folderizr was created with the intention of making your chat experience on chat.openai.com more efficient and organized, without any intrusion into your digital life.
-
-Thank you for your support and understanding as I share this necessary, albeit not always welcomed, information. Your trust is crucial to me.
-
-Thank you for choosing ChatGPT Folderizr!
-
-## For Users like you
-
-### Information Collection
-
-ChatGPT Folderizr is an open-source browser extension designed to organize conversations within the web page chat.openai.com. The extension does not collect, store, or transmit any personal or sensitive user information. It does not perform tracking, profiling, or any form of user monitoring.
-
-### Use of Information
-
-ChatGPT Folderizr operates entirely on your device and does not send data to external servers. It does not require access to personal or sensitive information. The extension functions solely to improve the organization of conversations within the chat.openai.com web interface.
-
-### Information Sharing
-
-The extension does not share any information with third parties or external services. There is no outgoing data transfer.
-
-### Security
-
-Security is a top priority. ChatGPT Folderizr has been designed to be as secure as possible and poses no risks to your privacy or online security.
-
-## For Legal and Related Parties
-
-### Information Collection
-
-ChatGPT Folderizr does not collect, store, or transmit any personal or sensitive user information. The extension does not perform tracking, profiling, or any form of user monitoring.
-
-### Information Sharing
-
-The extension does not share any information with third parties or external services. There is no outgoing data transfer.
-
-## Updates
-
-The extension may receive future updates to enhance its features or compatibility with new browser versions. Updates will be distributed through respective distribution platforms (e.g., Chrome Web Store or Microsoft Edge Addons) and will be installed automatically.
+Folderizr depends on ChatGPT's web UI and may break if that UI changes.
 
 ## Contact
 
-For questions, concerns, or privacy-related requests, please don't hesitate to contact me via the common methods.
-
-Thank you for your trust and continued support of ChatGPT Folderizr.
+For questions, use the project's public repository channels.
