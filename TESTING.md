@@ -15,7 +15,7 @@ Use version `1.1.0` from the local branch `chore/v1.1-modernization`.
 3. Open `https://chatgpt.com/`.
 4. Confirm the popup opens and defaults to disabled unless previously enabled.
 5. Enable Folderizr.
-6. Confirm a chat titled `[Work] Project update` appears under a `Work` visual folder as `Project update`.
+6. Confirm a chat titled `[Work] Project update` appears in a local `Folderizr` sidebar section under a `Work` visual folder as `Project update`.
 7. Confirm a chat without a prefix remains outside folders.
 8. Confirm multiple folders render separately, such as `[Work] ...` and `[Music] ...`.
 9. Reload the page and confirm the enabled state is remembered.
@@ -41,7 +41,7 @@ Use version `1.1.0` from the local branch `chore/v1.1-modernization`.
 
 ## Expected Results
 
-- Folderizr only changes the local visual sidebar layout.
+- Folderizr only changes the local visual sidebar layout and creates its own local section above Chats when grouped items exist.
 - The underlying ChatGPT conversation title is not changed by the extension.
 - Native ChatGPT buttons remain visible and usable.
 - Disabling Folderizr reloads the page and restores ChatGPT's own sidebar rendering.

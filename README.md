@@ -16,13 +16,16 @@ Example:
 Unsorted idea
 ```
 
-When enabled, the sidebar may display:
+When enabled, the sidebar may display a local Folderizr section above the normal Chats section:
 
 ```text
-Work
-  Project update
-Music
-  Synth setup
+Folderizr
+  Work
+    Project update
+  Music
+    Synth setup
+
+Chats
 Unsorted idea
 ```
 

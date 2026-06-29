@@ -10,6 +10,7 @@ Folderizr 1.1.0 prepares the extension for a safer, privacy-preserving, cross-br
 - Keeps permissions minimal with only `storage` for the local enable/disable preference.
 - Replaces aggressive polling with `MutationObserver`-based sidebar updates.
 - Keeps folder organization local and visual only.
+- Adds a dedicated local Folderizr sidebar section above Chats when grouped items are present.
 - Preserves native ChatGPT sidebar controls instead of hiding or disabling them.
 - Adds privacy, testing, changelog, and store listing documentation.
 

@@ -1,6 +1,7 @@
 (() => {
   const STORAGE_KEY = "folderizrEnabled";
   const LEGACY_KEYS = ["CGPTFolderizr_enabled", "CGPTFolderizr_EXT_enabled"];
+  const SECTION_ATTR = "data-folderizr-section";
   const FOLDER_ATTR = "data-folderizr-folder";
   const ITEM_ATTR = "data-folderizr-item";
   const api = globalThis.browser || globalThis.chrome;
@@ -78,6 +79,17 @@
         margin: 2px 0;
       }
 
+      [${SECTION_ATTR}] {
+        margin-bottom: var(--sidebar-expanded-section-margin-bottom, 12px);
+      }
+
+      [${SECTION_ATTR}] [data-folderizr-section-title] {
+        color: var(--text-primary);
+        font: inherit;
+        font-weight: 600;
+        margin: 0;
+      }
+
       [${FOLDER_ATTR}] > button {
         align-items: center;
         background: transparent;
@@ -134,8 +146,46 @@
     renderTimer = setTimeout(renderFolders, 120);
   }
 
-  function getConversationItems() {
-    const links = Array.from(document.querySelectorAll('a[href*="/c/"]'));
+  function findChatsList() {
+    const headings = Array.from(document.querySelectorAll("h2"));
+    const chatsHeading = headings.find((heading) => heading.textContent.trim().toLowerCase() === "chats");
+
+    if (chatsHeading) {
+      let current = chatsHeading.parentElement;
+      while (current && current !== document.body) {
+        const list = Array.from(current.children).find((child) => child.tagName === "UL");
+        if (list && list.querySelector('a[href^="/c/"]')) {
+          return list;
+        }
+        current = current.parentElement;
+      }
+    }
+
+    return Array.from(document.querySelectorAll("ul"))
+      .map((list) => ({
+        list,
+        count: list.querySelectorAll('a[href^="/c/"]').length,
+      }))
+      .sort((left, right) => right.count - left.count)[0]?.list || null;
+  }
+
+  function findSectionForList(list) {
+    let current = list;
+    while (current && current !== document.body) {
+      if (current.querySelector(":scope > div h2") || current.querySelector(":scope > ul")) {
+        const heading = current.querySelector("h2");
+        if (heading) {
+          return current;
+        }
+      }
+      current = current.parentElement;
+    }
+
+    return list;
+  }
+
+  function getConversationItems(chatsList) {
+    const links = Array.from(chatsList.querySelectorAll('a[href^="/c/"]'));
     const seen = new Set();
 
     return links
@@ -201,6 +251,15 @@
     });
   }
 
+  function restoreFolderizrSections(chatsList) {
+    document.querySelectorAll(`[${SECTION_ATTR}]`).forEach((section) => {
+      section.querySelectorAll(`[${FOLDER_ATTR}] [data-folderizr-list]`).forEach((list) => {
+        Array.from(list.children).forEach((child) => chatsList.appendChild(child));
+      });
+      section.remove();
+    });
+  }
+
   function restoreVisibleTitles(root = document) {
     root.querySelectorAll(`[${ITEM_ATTR}]`).forEach((item) => {
       const link = item.querySelector('a[href*="/c/"]') || item;
@@ -244,6 +303,35 @@
     return { folder, list, count };
   }
 
+  function createFolderizrSection() {
+    const section = document.createElement("div");
+    section.setAttribute(SECTION_ATTR, "");
+    section.className = "group/sidebar-expando-section mb-[var(--sidebar-expanded-section-margin-bottom)]";
+
+    const header = document.createElement("div");
+    header.className = "group/sidebar-expando-section-header flex items-center justify-between pe-1.5";
+
+    const headerButton = document.createElement("button");
+    headerButton.type = "button";
+    headerButton.className = "text-token-text-tertiary flex w-full items-center justify-start gap-0.5 px-4 py-1.5";
+    headerButton.setAttribute("aria-expanded", "true");
+
+    const heading = document.createElement("h2");
+    heading.className = "__menu-label text-token-text-primary font-semibold";
+    heading.dataset.folderizrSectionTitle = "";
+    heading.dataset.noSpacing = "true";
+    heading.textContent = "Folderizr";
+
+    const list = document.createElement("ul");
+    list.className = "m-0 list-none p-0";
+
+    headerButton.appendChild(heading);
+    header.appendChild(headerButton);
+    section.append(header, list);
+
+    return { section, list };
+  }
+
   function renderFolders() {
     if (!enabled || rendering || !document.body) {
       return;
@@ -256,12 +344,18 @@
 
     try {
       injectStyles();
+      const chatsList = findChatsList();
+      if (!chatsList) {
+        return;
+      }
+
+      restoreFolderizrSections(chatsList);
       restoreExistingFolders();
       restoreVisibleTitles();
 
       const groups = new Map();
 
-      getConversationItems().forEach(({ item, link }) => {
+      getConversationItems(chatsList).forEach(({ item, link }) => {
         const titleNode = findTitleTextNode(link);
         const title = titleNode ? titleNode.nodeValue.trim() : link.textContent.trim();
         const parsed = parseFolderTitle(title);
@@ -277,15 +371,17 @@
         groups.get(parsed.folderName).push({ item, titleNode, title, displayTitle: parsed.displayTitle });
       });
 
-      groups.forEach((entries, folderName) => {
-        const firstItem = entries[0].item;
-        const parent = firstItem.parentElement;
-        if (!parent) {
-          return;
-        }
+      if (!groups.size) {
+        return;
+      }
 
+      const folderizrSection = createFolderizrSection();
+      const chatsSection = findSectionForList(chatsList);
+      chatsSection.parentElement.insertBefore(folderizrSection.section, chatsSection);
+
+      groups.forEach((entries, folderName) => {
         const folder = createFolder(folderName);
-        parent.insertBefore(folder.folder, firstItem);
+        folderizrSection.list.appendChild(folder.folder);
 
         entries.forEach(({ item, titleNode, title, displayTitle }) => {
           item.setAttribute(ITEM_ATTR, "");
