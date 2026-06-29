@@ -17,6 +17,7 @@
   let chatIndex = [];
   let lastIndexBackupAt = null;
   let scannerRunning = false;
+  let scannerAbortRequested = false;
 
   const log = (...args) => console.info("Folderizr:", ...args);
 
@@ -510,16 +511,88 @@
     return Array.from(byHref.values()).sort((left, right) => left.title.localeCompare(right.title));
   }
 
+  function isScrollableElement(element) {
+    if (!element || element.clientHeight <= 0 || element.scrollHeight <= element.clientHeight + 8) {
+      return false;
+    }
+
+    const overflowY = getComputedStyle(element).overflowY;
+    return overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay";
+  }
+
+  function hasScrollableRange(element) {
+    return Boolean(
+      element
+      && element.clientHeight > 0
+      && element.scrollHeight > element.clientHeight + 8,
+    );
+  }
+
   function getChatScrollContainer() {
     const chatsList = findChatsList();
-    return document.querySelector('nav[aria-label="Chat history"]')
-      || (chatsList && chatsList.closest("nav"))
-      || (chatsList && chatsList.parentElement)
+    const chatNav = document.querySelector('nav[aria-label="Chat history"]')
+      || (chatsList && chatsList.closest("nav"));
+    const candidates = [];
+    const fallbackCandidates = [];
+
+    function addCandidate(element) {
+      if (hasScrollableRange(element) && !fallbackCandidates.includes(element)) {
+        fallbackCandidates.push(element);
+      }
+      if (isScrollableElement(element) && !candidates.includes(element)) {
+        candidates.push(element);
+      }
+    }
+
+    let current = chatsList;
+    while (current && current !== document.body) {
+      addCandidate(current);
+      if (current === chatNav) {
+        break;
+      }
+      current = current.parentElement;
+    }
+
+    if (chatNav) {
+      addCandidate(chatNav);
+
+      chatNav.querySelectorAll("*").forEach((element) => {
+        if (element.querySelector('a[href^="/c/"]')) {
+          addCandidate(element);
+        }
+      });
+    }
+
+    const rankByScrollableRange = (left, right) => {
+      const leftRange = left.scrollHeight - left.clientHeight;
+      const rightRange = right.scrollHeight - right.clientHeight;
+      return rightRange - leftRange;
+    };
+
+    return candidates.sort(rankByScrollableRange)[0]
+      || fallbackCandidates.sort(rankByScrollableRange)[0]
       || null;
   }
 
   function wait(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  function updateScannerControls() {
+    const panel = document.querySelector(`[${SEARCHER_ATTR}]`);
+    if (!panel) {
+      return;
+    }
+
+    const rescanButton = panel.querySelector("[data-folderizr-searcher-rescan]");
+    const stopButton = panel.querySelector("[data-folderizr-searcher-stop]");
+    if (rescanButton) {
+      rescanButton.disabled = scannerRunning;
+    }
+    if (stopButton) {
+      stopButton.hidden = !scannerRunning;
+      stopButton.disabled = !scannerRunning;
+    }
   }
 
   async function rescanChats(statusElement) {
@@ -528,50 +601,122 @@
     }
 
     scannerRunning = true;
+    scannerAbortRequested = false;
+    updateScannerControls();
+
     const scrollContainer = getChatScrollContainer();
     const originalScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
-    let unchangedRounds = 0;
-    let previousCount = 0;
+    let scannerObserver = null;
+    let mutationObserved = false;
+    let noNewRounds = 0;
+    let stableHeightRounds = 0;
+    let previousScrollHeight = scrollContainer ? scrollContainer.scrollHeight : 0;
+    let finalStatus = "";
+
+    clearTimeout(renderTimer);
+    if (observer) {
+      observer.disconnect();
+    }
 
     try {
       if (statusElement) {
-        statusElement.textContent = "Scanning visible chats...";
+        statusElement.textContent = "Preparing local scan...";
       }
 
       chatIndex = mergeIndexItems(chatIndex, collectVisibleChatIndex());
+      await storageSet({ [INDEX_KEY]: chatIndex });
 
-      if (scrollContainer) {
-        for (let round = 0; round < 80; round += 1) {
-          const before = chatIndex.length;
-          scrollContainer.scrollTop += Math.max(280, Math.floor(scrollContainer.clientHeight * 0.85));
-          await wait(450);
-          chatIndex = mergeIndexItems(chatIndex, collectVisibleChatIndex());
+      if (!scrollContainer) {
+        finalStatus = `Indexed ${chatIndex.length} visible chats. Scrollable chat list not found.`;
+        return;
+      }
 
-          const atBottom = scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 4;
-          unchangedRounds = chatIndex.length === before || chatIndex.length === previousCount
-            ? unchangedRounds + 1
-            : 0;
-          previousCount = chatIndex.length;
+      scannerObserver = new MutationObserver(() => {
+        mutationObserved = true;
+      });
+      scannerObserver.observe(scrollContainer, { childList: true, subtree: true });
 
-          if (statusElement) {
-            statusElement.textContent = `Scanning... ${chatIndex.length} chats indexed`;
-          }
+      scrollContainer.scrollTop = 0;
+      await wait(250);
 
-          if (atBottom && unchangedRounds >= 2) {
-            break;
-          }
+      for (let round = 1; round <= 120; round += 1) {
+        if (scannerAbortRequested) {
+          finalStatus = `Scan stopped. ${chatIndex.length} chats saved locally.`;
+          break;
         }
 
+        if (!scrollContainer.isConnected) {
+          finalStatus = `Scan interrupted by a page change. ${chatIndex.length} chats saved locally.`;
+          break;
+        }
+
+        const knownHrefs = new Set(chatIndex.map((item) => item.href));
+        const collectedItems = collectVisibleChatIndex();
+        const newCount = collectedItems.filter((item) => !knownHrefs.has(item.href)).length;
+        chatIndex = mergeIndexItems(chatIndex, collectedItems);
+
+        if (newCount > 0) {
+          noNewRounds = 0;
+          await storageSet({ [INDEX_KEY]: chatIndex });
+        } else {
+          noNewRounds += 1;
+        }
+
+        const currentScrollHeight = scrollContainer.scrollHeight;
+        stableHeightRounds = currentScrollHeight === previousScrollHeight
+          ? stableHeightRounds + 1
+          : 0;
+        previousScrollHeight = currentScrollHeight;
+
+        const atBottom = scrollContainer.scrollTop + scrollContainer.clientHeight
+          >= currentScrollHeight - 8;
+
+        if (statusElement) {
+          statusElement.textContent = `Scanning round ${round}: ${chatIndex.length} indexed, ${newCount} new`;
+        }
+
+        if (atBottom && noNewRounds >= 3 && stableHeightRounds >= 2 && !mutationObserved) {
+          finalStatus = `Scan complete. ${chatIndex.length} chats indexed locally.`;
+          break;
+        }
+
+        mutationObserved = false;
+        const scrollStep = Math.max(280, Math.floor(scrollContainer.clientHeight * 0.8));
+        scrollContainer.scrollTop = Math.min(
+          scrollContainer.scrollTop + scrollStep,
+          Math.max(0, currentScrollHeight - scrollContainer.clientHeight),
+        );
+        await wait(500);
+
+        if (round === 120) {
+          finalStatus = `Scan limit reached. ${chatIndex.length} chats saved locally.`;
+        }
+      }
+    } catch (error) {
+      log("scan failed", error);
+      finalStatus = `Scan failed safely. ${chatIndex.length} chats remain saved locally.`;
+    } finally {
+      if (scannerObserver) {
+        scannerObserver.disconnect();
+      }
+      if (scrollContainer && scrollContainer.isConnected) {
         scrollContainer.scrollTop = originalScrollTop;
       }
-
       await storageSet({ [INDEX_KEY]: chatIndex });
-      renderSearcherTree();
-      if (statusElement) {
-        statusElement.textContent = `Indexed ${chatIndex.length} chats locally.`;
-      }
-    } finally {
       scannerRunning = false;
+      scannerAbortRequested = false;
+      updateScannerControls();
+      renderSearcherTree();
+
+      const liveStatus = document.querySelector(`[${SEARCHER_ATTR}] [data-folderizr-searcher-status]`);
+      if (liveStatus && finalStatus) {
+        liveStatus.textContent = finalStatus;
+      }
+
+      if (observer && document.body) {
+        observer.observe(document.body, { childList: true, subtree: true });
+        scheduleRender();
+      }
     }
   }
 
@@ -744,6 +889,7 @@
         <input type="search" placeholder="Search folders and chats">
         <div data-folderizr-searcher-actions>
           <button type="button" data-folderizr-searcher-rescan>Rescan chats</button>
+          <button type="button" data-folderizr-searcher-stop hidden>Stop scan</button>
           <button type="button" data-folderizr-searcher-export>Export index</button>
         </div>
         <div data-folderizr-searcher-status></div>
@@ -759,6 +905,13 @@
     panel.querySelector("[data-folderizr-searcher-rescan]").addEventListener("click", () => {
       rescanChats(panel.querySelector("[data-folderizr-searcher-status]"));
     });
+    panel.querySelector("[data-folderizr-searcher-stop]").addEventListener("click", () => {
+      scannerAbortRequested = true;
+      const status = panel.querySelector("[data-folderizr-searcher-status]");
+      if (status) {
+        status.textContent = "Stopping scan and saving the partial index...";
+      }
+    });
     panel.querySelector("[data-folderizr-searcher-export]").addEventListener("click", exportIndexBackup);
 
     document.documentElement.append(toggle, panel);
@@ -766,6 +919,7 @@
   }
 
   function cleanupSearcherUi() {
+    scannerAbortRequested = true;
     document.querySelectorAll(`[${SEARCHER_TOGGLE_ATTR}], [${SEARCHER_ATTR}]`).forEach((node) => node.remove());
   }
 

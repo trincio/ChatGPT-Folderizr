@@ -4,6 +4,22 @@ Branch di lavoro: `feature/foldersearcher`
 
 Milestone stabile di partenza: `foldersearcher-prototype`
 
+## Stato Implementazione
+
+Implementato il 2026-06-29 sul branch di lavoro:
+
+- rilevamento del container con overflow e fallback sul range scrollabile;
+- scansione progressiva con limite massimo di round;
+- deduplica per `href`;
+- salvataggio locale dopo ogni batch con nuove chat;
+- `MutationObserver` temporaneo durante la scansione;
+- pulsante `Stop scan` e conservazione dell'indice parziale;
+- ripristino della posizione iniziale;
+- arresto sicuro quando la pagina cambia;
+- avanzamento con round, totale indicizzato e nuovi elementi.
+
+Validazione manuale Firefox sul DOM ChatGPT reale ancora necessaria.
+
 ## Obiettivo
 
 Migliorare `Rescan chats` per indicizzare progressivamente tutta la lista chat disponibile nella sidebar, non solo il primo blocco gia caricato.

@@ -8,6 +8,10 @@
 - Added search filtering that hides folder branches without matching descendants.
 - Added JSON export for the local FolderSearcher index only.
 - Added a local backup reminder after indexing.
+- Improved detection of the actual scrollable ChatGPT history container.
+- Added cancellable progressive scanning with a visible `Stop scan` action.
+- Added per-round progress reporting and progressive local index saves.
+- Added temporary mutation tracking, safe interruption handling, and scroll-position restoration.
 
 ## 1.1.0
 

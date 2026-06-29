@@ -58,3 +58,9 @@ Use version `1.1.0` from the local branch `chore/v1.1-modernization`.
 7. Type a search term and confirm folders without matching descendants disappear.
 8. Open a result and confirm it navigates to the chat using its normal `/c/...` link.
 9. Click `Export index` and confirm the JSON contains metadata only, not conversation contents.
+10. Start another rescan and confirm `Stop scan` appears while scanning.
+11. Click `Stop scan` and confirm the partial index is saved and remains searchable.
+12. Run a complete scan with enough history to trigger lazy loading and confirm the indexed count grows progressively.
+13. Confirm the sidebar returns to its original scroll position after a completed or stopped scan.
+14. Navigate to another page during a scan and confirm FolderSearcher stops safely without losing the partial index.
+15. Confirm `Rescan chats` is disabled while a scan is already running.
