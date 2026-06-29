@@ -15,6 +15,8 @@
 - Replaced the short round-based completion rule with an 8-second activity quiet period at the bottom of the list.
 - Extended the scan safety limit to 15 minutes for large histories.
 - Added a passive scan probe with exportable numeric DOM, timing, mutation, and progress diagnostics.
+- Fixed scanner fallback selection so FolderSearcher's own indexed tree cannot be mistaken for the native ChatGPT history.
+- Made chat-history discovery independent from the localized `Chat history` accessibility label.
 
 ## 1.1.0
 

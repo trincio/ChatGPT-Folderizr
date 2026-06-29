@@ -67,3 +67,5 @@ Use version `1.1.0` from the local branch `chore/v1.1-modernization`.
 16. After the scan, click `Export scan probe` and confirm a diagnostic JSON is downloaded.
 17. Confirm the probe JSON contains numeric DOM/timing counters but no chat titles, chat URLs, or conversation contents.
 18. On a large history, confirm the scanner waits at the apparent bottom while delayed lazy-loading batches arrive instead of completing after a few short rounds.
+19. Confirm the probe reports a positive `container.nativeChatLinks` value for the selected scroll container.
+20. Confirm `renderedChatLinks` is positive during the scan and that the FolderSearcher result tree itself does not scroll in place of the ChatGPT sidebar.

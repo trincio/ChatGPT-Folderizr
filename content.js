@@ -298,6 +298,11 @@
     renderTimer = setTimeout(renderFolders, 120);
   }
 
+  function getNativeConversationLinks(root = document) {
+    return Array.from(root.querySelectorAll('a[href^="/c/"]'))
+      .filter((link) => !link.closest(`[${SEARCHER_ATTR}]`));
+  }
+
   function findChatsList() {
     const headings = Array.from(document.querySelectorAll("h2"));
     const chatsHeading = headings.find((heading) => heading.textContent.trim().toLowerCase() === "chats");
@@ -314,11 +319,36 @@
     }
 
     return Array.from(document.querySelectorAll("ul"))
+      .filter((list) => !list.closest(
+        `[${SEARCHER_ATTR}], [${SECTION_ATTR}], [${FOLDER_ATTR}]`,
+      ))
       .map((list) => ({
         list,
-        count: list.querySelectorAll('a[href^="/c/"]').length,
+        count: getNativeConversationLinks(list).length,
       }))
+      .filter(({ count }) => count > 0)
       .sort((left, right) => right.count - left.count)[0]?.list || null;
+  }
+
+  function findChatHistoryRoot(chatsList = findChatsList()) {
+    const exactMatch = document.querySelector('nav[aria-label="Chat history"]');
+    if (exactMatch) {
+      return exactMatch;
+    }
+
+    const closestNav = chatsList && chatsList.closest("nav");
+    if (closestNav) {
+      return closestNav;
+    }
+
+    return Array.from(document.querySelectorAll("nav, aside"))
+      .filter((candidate) => !candidate.closest(`[${SEARCHER_ATTR}]`))
+      .map((candidate) => ({
+        candidate,
+        count: getNativeConversationLinks(candidate).length,
+      }))
+      .filter(({ count }) => count > 0)
+      .sort((left, right) => right.count - left.count)[0]?.candidate || null;
   }
 
   function findSectionForList(list) {
@@ -489,8 +519,8 @@
 
   function collectVisibleChatIndex() {
     const seen = new Set();
-    const root = document.querySelector('nav[aria-label="Chat history"]') || document;
-    return Array.from(root.querySelectorAll('a[href^="/c/"]'))
+    const root = findChatHistoryRoot() || document;
+    return getNativeConversationLinks(root)
       .map((link) => {
         const href = link.getAttribute("href");
         if (!href || seen.has(href)) {
@@ -537,8 +567,7 @@
 
   function getChatScrollContainer() {
     const chatsList = findChatsList();
-    const chatNav = document.querySelector('nav[aria-label="Chat history"]')
-      || (chatsList && chatsList.closest("nav"));
+    const chatNav = findChatHistoryRoot(chatsList);
     const candidates = [];
     const fallbackCandidates = [];
 
@@ -564,7 +593,7 @@
       addCandidate(chatNav);
 
       chatNav.querySelectorAll("*").forEach((element) => {
-        if (element.querySelector('a[href^="/c/"]')) {
+        if (getNativeConversationLinks(element).length > 0) {
           addCandidate(element);
         }
       });
@@ -605,6 +634,7 @@
           ? scrollContainer.className.slice(0, 500)
           : null,
         overflowY: getComputedStyle(scrollContainer).overflowY,
+        nativeChatLinks: getNativeConversationLinks(scrollContainer).length,
       },
       samples: [],
     };
@@ -631,9 +661,8 @@
           scrollTop: Math.round(scrollContainer.scrollTop),
           clientHeight: scrollContainer.clientHeight,
           scrollHeight: scrollContainer.scrollHeight,
-          renderedChatLinks: document.querySelectorAll(
-            'nav[aria-label="Chat history"] a[href^="/c/"]',
-          ).length,
+          renderedChatLinks: getNativeConversationLinks().length,
+          containerChatLinks: getNativeConversationLinks(scrollContainer).length,
           mutationBatches,
           mutatedNodes,
           lastMutationAt,
