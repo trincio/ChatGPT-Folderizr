@@ -3,7 +3,8 @@
   const INDEX_KEY = "folderizrChatIndex";
   const LAST_BACKUP_KEY = "folderizrLastIndexBackupAt";
   const DIAGNOSTICS_KEY = "folderizrLastScanDiagnostics";
-  const SCAN_QUIET_PERIOD_MS = 8000;
+  const MIN_SCAN_QUIET_PERIOD_MS = 15000;
+  const MAX_SCAN_QUIET_PERIOD_MS = 60000;
   const MAX_SCAN_DURATION_MS = 15 * 60 * 1000;
   const LEGACY_KEYS = ["CGPTFolderizr_enabled", "CGPTFolderizr_EXT_enabled"];
   const SECTION_ATTR = "data-folderizr-section";
@@ -624,7 +625,8 @@
       schemaVersion: 1,
       startedAt: new Date(startedAtMs).toISOString(),
       settings: {
-        quietPeriodMs: SCAN_QUIET_PERIOD_MS,
+        minQuietPeriodMs: MIN_SCAN_QUIET_PERIOD_MS,
+        maxQuietPeriodMs: MAX_SCAN_QUIET_PERIOD_MS,
         maxDurationMs: MAX_SCAN_DURATION_MS,
       },
       container: {
@@ -714,6 +716,9 @@
     let mutationObserved = false;
     let previousScrollHeight = scrollContainer ? scrollContainer.scrollHeight : 0;
     let lastActivityAt = Date.now();
+    let lastNewBatchAt = Date.now();
+    let maxObservedBatchGapMs = 0;
+    let requiredQuietMs = MIN_SCAN_QUIET_PERIOD_MS;
     let finalStatus = "";
 
     clearTimeout(renderTimer);
@@ -766,7 +771,15 @@
         chatIndex = mergeIndexItems(chatIndex, collectedItems);
 
         if (newCount > 0) {
-          lastActivityAt = Date.now();
+          const batchArrivedAt = Date.now();
+          const batchGapMs = batchArrivedAt - lastNewBatchAt;
+          maxObservedBatchGapMs = Math.max(maxObservedBatchGapMs, batchGapMs);
+          requiredQuietMs = Math.min(
+            MAX_SCAN_QUIET_PERIOD_MS,
+            Math.max(MIN_SCAN_QUIET_PERIOD_MS, Math.ceil(maxObservedBatchGapMs * 2.5)),
+          );
+          lastNewBatchAt = batchArrivedAt;
+          lastActivityAt = batchArrivedAt;
           await storageSet({ [INDEX_KEY]: chatIndex });
         }
 
@@ -787,17 +800,19 @@
           newCount,
           atBottom,
           quietForMs,
+          requiredQuietMs,
+          maxObservedBatchGapMs,
           scannerMutationObserved: mutationObserved,
         });
 
         if (statusElement) {
           const waitMessage = atBottom
-            ? `, waiting ${Math.max(0, Math.ceil((SCAN_QUIET_PERIOD_MS - quietForMs) / 1000))}s for lazy loading`
+            ? `, waiting ${Math.max(0, Math.ceil((requiredQuietMs - quietForMs) / 1000))}s for lazy loading`
             : "";
           statusElement.textContent = `Scanning round ${round}: ${chatIndex.length} indexed, ${newCount} new${waitMessage}`;
         }
 
-        if (atBottom && quietForMs >= SCAN_QUIET_PERIOD_MS) {
+        if (atBottom && quietForMs >= requiredQuietMs) {
           finalStatus = `Scan complete. ${chatIndex.length} chats indexed locally.`;
           break;
         }

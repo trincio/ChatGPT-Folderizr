@@ -17,6 +17,7 @@
 - Added a passive scan probe with exportable numeric DOM, timing, mutation, and progress diagnostics.
 - Fixed scanner fallback selection so FolderSearcher's own indexed tree cannot be mistaken for the native ChatGPT history.
 - Made chat-history discovery independent from the localized `Chat history` accessibility label.
+- Made scan completion adaptive to observed lazy-loading latency, with a 15-second minimum and 60-second maximum quiet period.
 
 ## 1.1.0
 
